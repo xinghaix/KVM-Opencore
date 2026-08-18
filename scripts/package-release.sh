@@ -20,6 +20,7 @@ WORK_DIR="${WORK_DIR:-${ROOT}/build}"
 OUT_DIR="${OUT_DIR:-${ROOT}/dist}"
 IMAGE_MB="${IMAGE_MB:-150}"
 USE_LATEST="${USE_LATEST:-false}"
+PINNED_OPENCORE="${OPENCORE_VERSION}"
 
 usage() {
   cat <<'EOF'
@@ -28,6 +29,7 @@ Usage: package-release.sh [options]
   --version NAME          Release name used in filenames (e.g. v22)
   --opencore TAG          OpenCorePkg release tag or "latest"
   --use-latest            Resolve every component to its latest GitHub release
+                          (still requires the KVM contract check to pass)
   --work-dir DIR          Scratch directory (default: ./build)
   --out-dir DIR           Output directory (default: ./dist)
   -h, --help              Show this help
@@ -254,6 +256,18 @@ if [[ -n "${OCVALIDATE}" && -f "${OCVALIDATE}" ]]; then
   "${OCVALIDATE}" "${EFI}/OC/config.plist"
 fi
 
+echo "=== KVM compatibility contract ==="
+python3 "${ROOT}/scripts/check-kvm-compat.py" "${EFI}/OC/config.plist" --efi-root "${EFI}"
+
+echo "=== upgrade review ${PINNED_OPENCORE} -> ${OPENCORE_VERSION} ==="
+python3 "${ROOT}/scripts/review-upgrade.py" \
+  --from "${PINNED_OPENCORE}" \
+  --to "${OPENCORE_VERSION}" \
+  --config "${ROOT}/EFI/OC/config.plist" \
+  --sample "${OC_EXTRACT}/Docs/Sample.plist" \
+  --changelog "${OC_EXTRACT}/Docs/Changelog.md" \
+  --output "${OUT_DIR}/upgrade-review.md"
+
 required=(
   "${EFI}/BOOT/BOOTx64.efi"
   "${EFI}/OC/OpenCore.efi"
@@ -414,6 +428,9 @@ EOF
   echo "- \`OpenCore-${RELEASE_VERSION}.iso.gz\` — GPT+FAT32 disk image with a \`.iso\` name so Proxmox lists it. Attach it as a disk, not as a real optical ISO."
   echo "- \`OpenCoreEFIFolder-${RELEASE_VERSION}.zip\` — raw \`EFI/\` folder."
   echo "- \`Configuration.pdf\` — OpenCore ${OPENCORE_VERSION} manual."
+  echo "- \`upgrade-review.md\` — changelog between the previously pinned OpenCore and this build. Read it before replacing a working VM disk."
+  echo
+  echo "This image keeps the QEMU/KVM contract in \`scripts/kvm-compat.json\`. Do not copy Sample.plist over \`EFI/OC/config.plist\`."
   echo
   echo "Rebuild locally with \`./scripts/package-release.sh --version ${RELEASE_VERSION} --opencore ${OPENCORE_VERSION}\`."
 } > "${NOTES}"
@@ -421,9 +438,9 @@ EOF
 (
   cd "${OUT_DIR}"
   if command -v sha256sum >/dev/null 2>&1; then
-    sha256sum "OpenCore-${RELEASE_VERSION}.iso.gz" "OpenCoreEFIFolder-${RELEASE_VERSION}.zip" Configuration.pdf > SHA256SUMS
+    sha256sum "OpenCore-${RELEASE_VERSION}.iso.gz" "OpenCoreEFIFolder-${RELEASE_VERSION}.zip" Configuration.pdf upgrade-review.md > SHA256SUMS
   else
-    shasum -a 256 "OpenCore-${RELEASE_VERSION}.iso.gz" "OpenCoreEFIFolder-${RELEASE_VERSION}.zip" Configuration.pdf > SHA256SUMS
+    shasum -a 256 "OpenCore-${RELEASE_VERSION}.iso.gz" "OpenCoreEFIFolder-${RELEASE_VERSION}.zip" Configuration.pdf upgrade-review.md > SHA256SUMS
   fi
 )
 

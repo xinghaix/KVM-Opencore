@@ -1,0 +1,252 @@
+{
+  "macos_tested": [
+    "Catalina",
+    "Big Sur",
+    "Monterey",
+    "Ventura"
+  ],
+  "settings": [
+    {
+      "path": ["Kernel", "Emulate", "DummyPowerManagement"],
+      "equals": true,
+      "why_en": "QEMU has no real SMC/power-management. Do not turn this off.",
+      "why_zh": "QEMU 没有真实 SMC/电源管理，禁止关掉。"
+    },
+    {
+      "path": ["Kernel", "Quirks", "ProvideCurrentCpuInfo"],
+      "equals": true,
+      "why_en": "Required for QEMU host-passthrough / Penryn topology. Replaced the old Algrey CPU patch. +invtsc is no longer required.",
+      "why_zh": "QEMU host-passthrough / Penryn 拓扑必需。取代旧的 Algrey CPU 补丁，不再强制 +invtsc。"
+    },
+    {
+      "path": ["Kernel", "Quirks", "ForceSecureBootScheme"],
+      "equals": true,
+      "why_en": "Needed so non-real-Mac SMBIOS can load Apple Secure Boot media.",
+      "why_zh": "非真实 Mac 的 SMBIOS 要能加载 Apple Secure Boot 安装介质。"
+    },
+    {
+      "path": ["Kernel", "Quirks", "SetApfsTrimTimeout"],
+      "equals": 0,
+      "why_en": "TRIM during boot is extremely slow on virtual disks. 0 disables it.",
+      "why_zh": "虚拟磁盘开机跑 TRIM 会极慢，0 表示关闭。"
+    },
+    {
+      "path": ["Booter", "Quirks", "SetupVirtualMap"],
+      "equals": false,
+      "why_en": "Breaks boot on many QEMU/OVMF firmwares. Keep false.",
+      "why_zh": "在不少 QEMU/OVMF 固件上会直接无法引导，必须保持 false。"
+    },
+    {
+      "path": ["Booter", "Quirks", "ClearTaskSwitchBit"],
+      "equals": false,
+      "why_en": "Hyper-V Gen2 32-bit only. Must stay false on KVM.",
+      "why_zh": "只给 Hyper-V Gen2 的 32 位用，KVM 必须保持 false。"
+    },
+    {
+      "path": ["Booter", "Quirks", "AvoidRuntimeDefrag"],
+      "equals": true,
+      "why_en": "Standard boot-stability quirk; required by ocvalidate-era Sample and QEMU.",
+      "why_zh": "引导稳定性开关，QEMU 上保持开启。"
+    },
+    {
+      "path": ["Booter", "Quirks", "EnableSafeModeSlide"],
+      "equals": true,
+      "why_en": "Needed together with ProvideCustomSlide.",
+      "why_zh": "需要和 ProvideCustomSlide 一起开。"
+    },
+    {
+      "path": ["Booter", "Quirks", "EnableWriteUnprotector"],
+      "equals": true,
+      "why_en": "OVMF memory protection; keep enabled.",
+      "why_zh": "OVMF 内存保护相关，保持开启。"
+    },
+    {
+      "path": ["Booter", "Quirks", "ProvideCustomSlide"],
+      "equals": true,
+      "why_en": "Required slide support on virtual firmware.",
+      "why_zh": "虚拟固件上的 slide 支持，必须开。"
+    },
+    {
+      "path": ["UEFI", "Quirks", "RequestBootVarRouting"],
+      "equals": true,
+      "why_en": "Lets OpenCore own Boot#### NVRAM on OVMF.",
+      "why_zh": "让 OpenCore 接管 OVMF 的 Boot#### NVRAM。"
+    },
+    {
+      "path": ["UEFI", "ProtocolOverrides", "FirmwareVolume"],
+      "equals": true,
+      "why_en": "Required for FileVault / Apple firmware volume on OVMF.",
+      "why_zh": "OVMF 上 FileVault / Apple firmware volume 需要。"
+    },
+    {
+      "path": ["UEFI", "Output", "ProvideConsoleGop"],
+      "equals": true,
+      "why_en": "OpenCanopy picker needs GOP on OVMF.",
+      "why_zh": "OVMF 上 OpenCanopy 图形菜单需要 GOP。"
+    },
+    {
+      "path": ["Misc", "Boot", "Timeout"],
+      "equals": 0,
+      "why_en": "A non-zero timeout can make the installer re-enter itself.",
+      "why_zh": "Timeout 非 0 时安装器可能反复进入自己。"
+    },
+    {
+      "path": ["Misc", "Boot", "ShowPicker"],
+      "equals": true,
+      "why_en": "Keep the picker visible so a bad default entry is recoverable.",
+      "why_zh": "保持选择菜单可见，避免默认项坏了无法恢复。"
+    },
+    {
+      "path": ["Misc", "Boot", "PickerMode"],
+      "equals": "External",
+      "why_en": "Uses OpenCanopy. Do not switch to Builtin unless you drop OpenCanopy.efi.",
+      "why_zh": "走 OpenCanopy。除非去掉 OpenCanopy.efi，不要改成 Builtin。"
+    },
+    {
+      "path": ["Misc", "Security", "SecureBootModel"],
+      "equals": "Disabled",
+      "why_en": "QEMU SMBIOS is not a real Mac. Default/j137 will refuse to boot installers.",
+      "why_zh": "QEMU 的 SMBIOS 不是真机。Default/j137 会拒绝启动安装器。"
+    },
+    {
+      "path": ["Misc", "Security", "Vault"],
+      "equals": "Optional",
+      "why_en": "Sample.plist uses Secure. That bricks unsigned KVM images.",
+      "why_zh": "官方 Sample 默认 Secure，会让未签名的 KVM 镜像无法启动。"
+    },
+    {
+      "path": ["Misc", "Security", "DmgLoading"],
+      "equals": "Signed",
+      "why_en": "Allows official recovery/installer DMGs while still rejecting random images.",
+      "why_zh": "允许官方恢复/安装 DMG，同时拒绝来路不明的镜像。"
+    },
+    {
+      "path": ["PlatformInfo", "Automatic"],
+      "equals": true,
+      "why_en": "SMBIOS is generated from Generic. Do not switch to manual tables.",
+      "why_zh": "SMBIOS 由 Generic 生成，不要改成手写表。"
+    },
+    {
+      "path": ["PlatformInfo", "Generic", "SystemProductName"],
+      "equals": "iMacPro1,1",
+      "why_en": "Default KVM SMBIOS for this image. Changing it needs a matching ROM/MLB/serial.",
+      "why_zh": "本镜像默认 SMBIOS。改机型必须同步改 ROM/MLB/序列号。"
+    },
+    {
+      "path": ["PlatformInfo", "UpdateSMBIOSMode"],
+      "equals": "Create",
+      "why_en": "OVMF has no Apple SMBIOS to patch; Create is required.",
+      "why_zh": "OVMF 没有可补丁的 Apple SMBIOS，必须用 Create。"
+    },
+    {
+      "path": ["Kernel", "Emulate", "Cpuid1Data"],
+      "equals_hex": "54060500000000000000000000000000",
+      "why_en": "Spoofs Penryn (0x00050654) so macOS accepts the virtual CPU.",
+      "why_zh": "伪装 Penryn（0x00050654），让 macOS 接受这颗虚拟 CPU。"
+    },
+    {
+      "path": ["Kernel", "Emulate", "Cpuid1Mask"],
+      "equals_hex": "ffffff00000000000000000000000000",
+      "why_en": "Applies the Penryn family/model/stepping mask.",
+      "why_zh": "Penryn 的 family/model/stepping 掩码。"
+    }
+  ],
+  "device_properties": {
+    "PciRoot(0x1)/Pci(0x1F,0x0)": {
+      "compatible": "pci8086,2916",
+      "name": "pci8086,2916",
+      "device-id_hex": "162900",
+      "why_en": "ICH9 LPC spoof used by Q35/ICH9 VMs.",
+      "why_zh": "Q35/ICH9 虚拟机的 LPC 伪装。"
+    }
+  },
+  "kexts": [
+    {
+      "bundle": "Lilu.kext",
+      "enabled": true
+    },
+    {
+      "bundle": "WhateverGreen.kext",
+      "enabled": true
+    },
+    {
+      "bundle": "AppleALC.kext",
+      "enabled": true
+    },
+    {
+      "bundle": "MCEReporterDisabler.kext",
+      "enabled": true,
+      "why_en": "iMacPro1,1 panics without this on many VMs.",
+      "why_zh": "很多虚拟机上 iMacPro1,1 没有它会 panic。"
+    },
+    {
+      "bundle": "USBPorts.kext",
+      "enabled": true
+    },
+    {
+      "bundle": "AGPMInjector.kext",
+      "enabled": true
+    },
+    {
+      "bundle": "VirtualSMC.kext",
+      "enabled": false,
+      "why_en": "This image uses DummyPowerManagement instead of VirtualSMC.",
+      "why_zh": "本镜像用 DummyPowerManagement，不启用 VirtualSMC。"
+    },
+    {
+      "bundle": "CryptexFixup.kext",
+      "enabled": true,
+      "min": "22.1.0",
+      "why_en": "Non-AVX2 hosts cannot boot Ventura+ without it.",
+      "why_zh": "宿主机没有 AVX2 时，Ventura 及以上必须靠它。"
+    },
+    {
+      "bundle": "BrcmFirmwareData.kext",
+      "enabled": true
+    },
+    {
+      "bundle": "BrcmNonPatchRAM2.kext",
+      "enabled": true,
+      "min": "15.0.0",
+      "max": "18.99.99"
+    },
+    {
+      "bundle": "BrcmPatchRAM2.kext",
+      "enabled": true,
+      "min": "15.0.0",
+      "max": "18.99.99"
+    },
+    {
+      "bundle": "BrcmPatchRAM3.kext",
+      "enabled": true,
+      "min": "19.0.0"
+    },
+    {
+      "bundle": "BrcmBluetoothInjector.kext",
+      "enabled": true,
+      "min": "19.0.0",
+      "max": "20.99.99",
+      "why_en": "Must NOT load on Monterey+. Wrong range caused 20-minute boots on v20.",
+      "why_zh": "Monterey 及以上绝不能加载。范围写错会像 v20 那样开机 20 分钟。"
+    },
+    {
+      "bundle": "BlueToolFixup.kext",
+      "enabled": true,
+      "min": "21.0.0",
+      "why_en": "Bluetooth for macOS 12+. Keep MinKernel at 21.0.0.",
+      "why_zh": "macOS 12+ 的蓝牙。MinKernel 必须是 21.0.0。"
+    }
+  ],
+  "drivers": [
+    "OpenRuntime.efi",
+    "OpenHfsPlus.efi",
+    "OpenCanopy.efi",
+    "OpenPartitionDxe.efi"
+  ],
+  "acpi": [
+    "SSDT-EC.aml",
+    "SSDT-PLUG.aml",
+    "SSDT-DTGP.aml",
+    "SSDT-EHCI.aml"
+  ]
+}

@@ -130,5 +130,6 @@ jobs:
             "dist/OpenCore-${TAG}.iso.gz" \
             "dist/OpenCoreEFIFolder-${TAG}.zip" \
             dist/Configuration.pdf \
+            dist/upgrade-review.md \
             dist/SHA256SUMS \
             dist/versions.txt

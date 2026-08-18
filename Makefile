@@ -60,6 +60,14 @@ dist : $(SUBMODULES) OpenCore-$(RELEASE_VERSION).dmg.gz OpenCoreEFIFolder-$(RELE
 ci-dist :
 	./scripts/package-release.sh --version $(RELEASE_VERSION)
 
+# Mandatory before bumping OpenCore: show changelog + Sample.plist schema delta.
+review :
+	python3 scripts/review-upgrade.py --to latest
+
+# Fail if QEMU/KVM-required config values drifted.
+check :
+	python3 scripts/check-kvm-compat.py EFI/OC/config.plist
+
 # Create OpenCore disk image:
 
 OpenCore-$(RELEASE_VERSION).dmg : Makefile $(EFI_FILES)
