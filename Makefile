@@ -56,6 +56,10 @@ all : $(SUBMODULES) $(EFI_FILES)
 
 dist : $(SUBMODULES) OpenCore-$(RELEASE_VERSION).dmg.gz OpenCoreEFIFolder-$(RELEASE_VERSION).zip OpenCore-$(RELEASE_VERSION).iso.gz
 
+# Assemble a release from official acidanthera binaries (used by GitHub Actions).
+ci-dist :
+	./scripts/package-release.sh --version $(RELEASE_VERSION)
+
 # Create OpenCore disk image:
 
 OpenCore-$(RELEASE_VERSION).dmg : Makefile $(EFI_FILES)

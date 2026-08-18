@@ -25,6 +25,11 @@ OpenCore-Image/
 OpenCore.dmg*
 OpenCore.iso*
 OpenCoreEFIFolder.zip
+build/
+dist/
+scripts/__pycache__/
+__pycache__/
+*.pyc
 
 # Prerequisites
 *.d
@@ -79,4 +84,8 @@ Module.symvers
 Mkfile.old
 dkms.conf
 .*
+!.gitignore
+!.gitmodules
+!.github/
+!.github/**
 *~

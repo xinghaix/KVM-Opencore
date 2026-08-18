@@ -1,0 +1,134 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_version:
+        description: "Release tag (e.g. v22). Empty uses oc-<OpenCore version>."
+        required: false
+        default: "v22"
+      opencore_version:
+        description: "OpenCorePkg release tag, or latest"
+        required: true
+        default: "1.0.7"
+      use_latest:
+        description: "Ignore kext pins and use each project's latest GitHub release"
+        type: boolean
+        default: false
+      draft:
+        description: "Create a draft GitHub release"
+        type: boolean
+        default: false
+      overwrite:
+        description: "Replace an existing GitHub release with the same tag"
+        type: boolean
+        default: false
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  package:
+    name: Package OpenCore image
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    outputs:
+      release_version: ${{ steps.pack.outputs.release_version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install packaging tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends gdisk dosfstools mtools zip unzip gzip
+
+      - name: Resolve versions
+        id: vars
+        env:
+          INPUT_RELEASE_VERSION: ${{ github.event.inputs.release_version || '' }}
+          INPUT_OPENCORE_VERSION: ${{ github.event.inputs.opencore_version || '1.0.7' }}
+          INPUT_USE_LATEST: ${{ github.event.inputs.use_latest || 'false' }}
+        run: |
+          set -euo pipefail
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            echo "release_version=${GITHUB_REF_NAME}" >> "${GITHUB_OUTPUT}"
+          else
+            echo "release_version=${INPUT_RELEASE_VERSION}" >> "${GITHUB_OUTPUT}"
+          fi
+          echo "opencore_version=${INPUT_OPENCORE_VERSION}" >> "${GITHUB_OUTPUT}"
+          echo "use_latest=${INPUT_USE_LATEST}" >> "${GITHUB_OUTPUT}"
+
+      - name: Assemble release artifacts
+        id: pack
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ steps.vars.outputs.release_version }}
+          OPENCORE_VERSION: ${{ steps.vars.outputs.opencore_version }}
+        run: |
+          set -euo pipefail
+          chmod +x scripts/package-release.sh scripts/ensure_oc_config.py
+          extra=()
+          if [[ "${{ steps.vars.outputs.use_latest }}" == "true" ]]; then
+            extra+=(--use-latest)
+          fi
+          ./scripts/package-release.sh \
+            --version "${RELEASE_VERSION}" \
+            --opencore "${OPENCORE_VERSION}" \
+            --work-dir "${{ runner.temp }}/oc-build" \
+            --out-dir "${{ github.workspace }}/dist" \
+            "${extra[@]}"
+          # Script may default the version when the input is empty.
+          resolved="$(awk -F= '/^RELEASE_VERSION=/{print $2}' dist/versions.txt)"
+          echo "release_version=${resolved}" >> "${GITHUB_OUTPUT}"
+          cat dist/versions.txt
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenCore-${{ steps.pack.outputs.release_version }}
+          path: dist/*
+          if-no-files-found: error
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.pack.outputs.release_version }}
+          DRAFT: ${{ github.event.inputs.draft || 'false' }}
+          OVERWRITE: ${{ github.event.inputs.overwrite || 'false' }}
+        run: |
+          set -euo pipefail
+          if gh release view "${TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            if [[ "${OVERWRITE}" != "true" ]]; then
+              echo "Release ${TAG} already exists. Re-run with overwrite=true to replace it." >&2
+              exit 1
+            fi
+            gh release delete "${TAG}" --repo "${GITHUB_REPOSITORY}" --yes
+          fi
+
+          extra=()
+          if [[ "${DRAFT}" == "true" ]]; then
+            extra+=(--draft)
+          else
+            extra+=(--latest)
+          fi
+
+          title="${TAG} — OpenCore $(awk -F= '/^OPENCORE_VERSION=/{print $2}' dist/versions.txt) for QEMU/KVM"
+          gh release create "${TAG}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --target "${GITHUB_SHA}" \
+            --title "${title}" \
+            --notes-file dist/release-notes.md \
+            "${extra[@]}" \
+            "dist/OpenCore-${TAG}.iso.gz" \
+            "dist/OpenCoreEFIFolder-${TAG}.zip" \
+            dist/Configuration.pdf \
+            dist/SHA256SUMS \
+            dist/versions.txt
