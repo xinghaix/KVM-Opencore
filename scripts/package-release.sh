@@ -19,7 +19,10 @@ BRCMPATCHRAM_VERSION="${BRCMPATCHRAM_VERSION:-latest}"
 CRYPTEXFIXUP_VERSION="${CRYPTEXFIXUP_VERSION:-latest}"
 WORK_DIR="${WORK_DIR:-${ROOT}/build}"
 OUT_DIR="${OUT_DIR:-${ROOT}/dist}"
-IMAGE_MB="${IMAGE_MB:-150}"
+# Keep the El Torito EFI image below 32 MiB. Some OVMF versions treat a
+# 32 MiB image's 16-bit sector count (0xffff/0) as an invalid boot image.
+ELTORITO_MIN_MB="${ELTORITO_MIN_MB:-24}"
+ELTORITO_MAX_MB="${ELTORITO_MAX_MB:-31}"
 USE_LATEST="${USE_LATEST:-false}"
 PINNED_OPENCORE="${OPENCORE_VERSION}"
 
@@ -308,11 +311,34 @@ cp -a "${OC_EXTRACT}/Docs/Configuration.pdf" "${PDF}"
 create_fat_esp() {
   local fat="$1"
   local mb="$2"
-  need mkfs.vfat
+  local mkfs=""
+  local candidate
+  for candidate in mkfs.vfat mkfs.fat \
+      /opt/homebrew/sbin/mkfs.vfat /opt/homebrew/sbin/mkfs.fat \
+      /usr/local/sbin/mkfs.vfat /usr/local/sbin/mkfs.fat \
+      /usr/sbin/mkfs.vfat /usr/sbin/mkfs.fat; do
+    if [[ "${candidate}" == /* ]]; then
+      if [[ -x "${candidate}" ]]; then
+        mkfs="${candidate}"
+        break
+      fi
+    else
+      mkfs="$(command -v "${candidate}" || true)"
+      if [[ -n "${mkfs}" ]]; then
+        break
+      fi
+    fi
+  done
+  [[ -n "${mkfs}" ]] || {
+    echo "missing required command: mkfs.vfat or mkfs.fat" >&2
+    exit 1
+  }
   need mcopy
   rm -f "${fat}"
   truncate -s "${mb}M" "${fat}"
-  mkfs.vfat -F 32 -n OPENCORE "${fat}" >/dev/null
+  # FAT16 matches the small ESP used by LongQT/OpenCore-ISO and avoids the
+  # El Torito 16-bit sector-count boundary that breaks some OVMF builds.
+  "${mkfs}" -F 16 -n OPENCORE "${fat}" >/dev/null
   export MTOOLS_SKIP_CHECK=1
   mcopy -i "${fat}" -s "${EFI}" ::
 }
@@ -325,11 +351,17 @@ create_uefi_iso() {
   local root="${WORK_DIR}/iso-root"
   local efi_kb mb
   efi_kb="$(du -sk "${EFI}" | awk '{print $1}')"
+  # Leave filesystem/headroom space, but stay below 32 MiB so xorriso writes
+  # a non-zero El Torito sector count that older OVMF versions accept.
   mb=$(( (efi_kb + 8192 + 1023) / 1024 ))
-  if (( mb < 32 )); then mb=32; fi
-  if (( mb > IMAGE_MB )); then mb="${IMAGE_MB}"; fi
+  if (( mb < ELTORITO_MIN_MB )); then mb="${ELTORITO_MIN_MB}"; fi
+  if (( mb > ELTORITO_MAX_MB )); then
+    echo "EFI tree is too large for a compatible El Torito ESP: ${efi_kb} KiB" >&2
+    echo "Reduce EFI resources or raise the format design limit deliberately; do not use a 32 MiB image." >&2
+    exit 1
+  fi
 
-  echo "building UEFI El Torito ISO (${mb} MiB ESP)"
+  echo "building UEFI El Torito ISO (${mb} MiB FAT16 ESP)"
   create_fat_esp "${fat}" "${mb}"
   rm -rf "${root}"
   mkdir -p "${root}/EFI/BOOT"
@@ -351,6 +383,34 @@ create_uefi_iso() {
     -isohybrid-gpt-basdat \
     -output "${iso}" \
     "${root}"
+
+  python3 - "${iso}" <<'PY'
+import pathlib
+import struct
+import sys
+
+path = pathlib.Path(sys.argv[1])
+data = path.read_bytes()
+block = 2048
+if len(data) < 19 * block or data[16 * block + 1:16 * block + 6] != b"CD001":
+    raise SystemExit("output is not an ISO 9660 image")
+boot_record = data[17 * block:(18 * block)]
+if boot_record[1:6] != b"CD001" or boot_record[7:39].startswith(b"EL TORITO") is False:
+    raise SystemExit("ISO has no El Torito boot record")
+catalog_lba = struct.unpack_from("<I", boot_record, 71)[0]
+catalog = data[catalog_lba * block:(catalog_lba + 1) * block]
+if catalog[30:32] != b"\x55\xaa" or catalog[1] != 0xEF:
+    raise SystemExit("El Torito catalog is not a UEFI catalog")
+initial = catalog[32:64]
+sector_count = struct.unpack_from("<H", initial, 6)[0]
+boot_lba = struct.unpack_from("<I", initial, 8)[0]
+if initial[0] != 0x88 or initial[1] != 0 or sector_count == 0 or boot_lba == 0:
+    raise SystemExit(
+        f"incompatible UEFI El Torito entry: indicator={initial[0]:#x}, "
+        f"media={initial[1]:#x}, sectors={sector_count}, lba={boot_lba}"
+    )
+print(f"verified UEFI El Torito boot image: LBA {boot_lba}, {sector_count} sectors")
+PY
 }
 
 create_uefi_iso "${ISO}"
