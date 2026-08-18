@@ -6,6 +6,8 @@ OpenCore images for QEMU/KVM. Upstream OpenCore targets real Macs and Hackintosh
 
 This repository is a **clone** of [thenickdude/KVM-Opencore](https://github.com/thenickdude/KVM-Opencore) (which itself continues [Leoyzen/KVM-Opencore](https://github.com/leoyzen/KVM-Opencore)). It is not a new upstream project. The local additions are custom QEMU/KVM configuration, an automated release workflow, and the upgrade/compatibility checks described below.
 
+Release ISOs attach as a CD-ROM (practice aligned with [LongQT-sea/OpenCore-ISO](https://github.com/LongQT-sea/OpenCore-ISO)). Hardware-specific VM settings — Proxmox OS Type Other, USB 3, Navi / RX 6600 XT, newer Intel CPUs — are in [docs/hardware.md](docs/hardware.md). Those are hypervisor edits, not silent changes to the shared `config.plist`.
+
 ## What this is
 
 GitHub Actions downloads official [acidanthera](https://github.com/acidanthera) RELEASE zips, overlays this tree's QEMU/KVM `config.plist`, ACPI, and custom kexts, runs the **matching** `ocvalidate`, then enforces `scripts/kvm-compat.json` before publishing:
@@ -145,7 +147,20 @@ Source builds on macOS remain `make` / `make dist RELEASE_VERSION=v23`. Run `mak
 ## VM notes
 
 - Releases from this workflow are real CDs. In Proxmox: upload `OpenCore-<tag>.iso` to the ISO storage and attach it as a CD-ROM. In QEMU: `-cdrom OpenCore-<tag>.iso`. Do not import it as a hard disk.
+- Create the VM as **OS Type = Other**. That is required for reliable USB 3 passthrough; it is not an OpenCore plist key. Details: [docs/hardware.md](docs/hardware.md).
 - Older thenickdude releases (`OpenCore-v21.iso` and earlier) were GPT disk images with an `.iso` name. Those still need to be attached as disks.
 - Stock OVMF is enough; no patched firmware is required.
-- Use `host-passthrough` or Penryn; `+invtsc` is no longer required once `ProvideCurrentCpuInfo=true`.
-- See `libvirt.xml`.
+- Default QEMU CPU in `libvirt.xml` is still Penryn. On a modern Intel host, `host-passthrough` is faster only if you also clear the Penryn `Cpuid1Data` spoof in a **private** config. 12th-gen and newer hybrid CPUs often need P-cores only, or a named model such as Skylake-Client. See [docs/hardware.md](docs/hardware.md).
+- RX 6600 XT / other Navi: add `agdpmod=pikera` yourself. It is not in the shared ISO (it breaks Polaris).
+
+## Acknowledgments
+
+This tree would not exist without the projects it clones and the docs it borrowed:
+
+- [Leoyzen/KVM-Opencore](https://github.com/leoyzen/KVM-Opencore) — original QEMU/KVM OpenCore image and ACPI/libvirt layout.
+- [thenickdude/KVM-Opencore](https://github.com/thenickdude/KVM-Opencore) — source clone: build system, release numbering, and the QEMU/KVM `config.plist` this repo still ships.
+- [LongQT-sea/OpenCore-ISO](https://github.com/LongQT-sea/OpenCore-ISO) and [qemu-cpu-guide](https://github.com/LongQT-sea/qemu-cpu-guide) — real CD-ROM ISO packaging, Proxmox usage, and the Skylake-vs-`host` CPU discussion.
+- [acidanthera](https://github.com/acidanthera) — OpenCore, Lilu, WhateverGreen, and the other RELEASE binaries.
+- [Dortania](https://dortania.github.io/) — OpenCore Install Guide and GPU Buyers Guide (including Navi / `agdpmod=pikera`).
+- [kholia/OSX-KVM](https://github.com/kholia/OSX-KVM) — QEMU USB/xHCI (`msi=off`) patterns.
+- [Nick Sherlock](https://www.nicksherlock.com/) — Proxmox macOS guides (OS Type Other, `ProvideCurrentCpuInfo`, USB 3).

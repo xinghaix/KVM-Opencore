@@ -6,6 +6,8 @@ QEMU/KVM 专用的 OpenCore 镜像。官方 OpenCore 只保证真机/Hackintosh�
 
 本仓库只是 [thenickdude/KVM-Opencore](https://github.com/thenickdude/KVM-Opencore) 的**克隆**（其源头是 [Leoyzen/KVM-Opencore](https://github.com/leoyzen/KVM-Opencore)），不是新的上游项目。这里只加了自己的 QEMU/KVM 自定义配置、自动发版工作流，以及下文的升级/兼容性检查。
 
+Release ISO 按 CD-ROM 挂载（做法参考 [LongQT-sea/OpenCore-ISO](https://github.com/LongQT-sea/OpenCore-ISO)）。Proxmox OS Type 选 Other、USB 3、Navi / RX 6600 XT、较新的 Intel CPU 等，写在 [docs/hardware.zh-CN.md](docs/hardware.zh-CN.md)。那些是虚拟机侧的修改，不会偷偷改共用的 `config.plist`。
+
 ## 这是什么
 
 GitHub Actions 下载 [acidanthera](https://github.com/acidanthera) 的官方 RELEASE 包，叠上本仓库的 `EFI/OC/config.plist`、ACPI 和自定义 kext，用**同一版本**的 `ocvalidate` 校验，再跑 `scripts/kvm-compat.json` 契约检查，最后发布：
@@ -145,7 +147,20 @@ macOS 上从 submodule 源码编译仍是 `make` / `make dist RELEASE_VERSION=v2
 ## 虚拟机侧注意
 
 - 本仓库工作流打出来的是真正的光盘。Proxmox：把 `OpenCore-<tag>.iso` 传到 ISO 存储，按 CD-ROM 挂上即可。QEMU：`-cdrom OpenCore-<tag>.iso`。不要当成硬盘导入。
+- 创建虚拟机时 **OS Type 选 Other**。USB 3 直通要靠这一项，它不是 OpenCore 的 plist 键。详见 [docs/hardware.zh-CN.md](docs/hardware.zh-CN.md)。
 - thenickdude 的旧版（`OpenCore-v21.iso` 及更早）仍是 GPT 磁盘改了扩展名，那些还是要按硬盘挂。
 - 固件用原版 OVMF 即可，不必再打补丁。
-- CPU 用 `host-passthrough` 或 Penryn；`ProvideCurrentCpuInfo=true` 后不再强制 `+invtsc`。
-- 参考 `libvirt.xml`。
+- `libvirt.xml` 默认仍是 Penryn。较新的 Intel 宿主要用 `host-passthrough` 才更强，但必须在**自己的** config 里清掉 Penryn 的 `Cpuid1Data` 伪装。12 代及更新的大小核往往只能绑 P 核，或改用 Skylake-Client 这类具名型号。见 [docs/hardware.zh-CN.md](docs/hardware.zh-CN.md)。
+- RX 6600 XT 等 Navi：自己加 `agdpmod=pikera`。共用 ISO 不加（会搞坏 Polaris）。
+
+## 感谢
+
+没有下面这些项目，就不会有这个克隆仓库：
+
+- [Leoyzen/KVM-Opencore](https://github.com/leoyzen/KVM-Opencore) — 最初的 QEMU/KVM OpenCore 镜像，以及 ACPI / libvirt 布局。
+- [thenickdude/KVM-Opencore](https://github.com/thenickdude/KVM-Opencore) — 本仓库的来源：构建系统、发行编号，以及现在仍在用的 QEMU/KVM `config.plist`。
+- [LongQT-sea/OpenCore-ISO](https://github.com/LongQT-sea/OpenCore-ISO) 与 [qemu-cpu-guide](https://github.com/LongQT-sea/qemu-cpu-guide) — 真正的 CD-ROM ISO、Proxmox 用法，以及 Skylake 和 `host` 怎么选。
+- [acidanthera](https://github.com/acidanthera) — OpenCore、Lilu、WhateverGreen 等官方 RELEASE。
+- [Dortania](https://dortania.github.io/) — OpenCore 安装指南和显卡购买指南（含 Navi / `agdpmod=pikera`）。
+- [kholia/OSX-KVM](https://github.com/kholia/OSX-KVM) — QEMU USB/xHCI（`msi=off`）写法。
+- [Nick Sherlock](https://www.nicksherlock.com/) — Proxmox 上的 macOS 教程（OS Type Other、`ProvideCurrentCpuInfo`、USB 3）。
