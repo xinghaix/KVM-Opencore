@@ -293,11 +293,10 @@ done
 ISO="${OUT_DIR}/OpenCore-${RELEASE_VERSION}.iso"
 ZIP="${OUT_DIR}/OpenCoreEFIFolder-${RELEASE_VERSION}.zip"
 NOTES="${OUT_DIR}/release-notes.md"
-VERSIONS_OUT="${OUT_DIR}/versions.txt"
 SUMS="${OUT_DIR}/SHA256SUMS"
 PDF="${OUT_DIR}/Configuration.pdf"
 
-rm -f "${ISO}" "${ISO}.gz" "${ZIP}" "${NOTES}" "${VERSIONS_OUT}" "${SUMS}" "${PDF}"
+rm -f "${ISO}" "${ISO}.gz" "${ZIP}" "${NOTES}" "${SUMS}" "${PDF}" "${OUT_DIR}/versions.txt"
 cp -a "${OC_EXTRACT}/Docs/Configuration.pdf" "${PDF}"
 
 (
@@ -396,17 +395,6 @@ esac
 
 gzip -f --keep "${ISO}"
 
-cat > "${VERSIONS_OUT}" <<EOF
-RELEASE_VERSION=${RELEASE_VERSION}
-OPENCORE_VERSION=${OPENCORE_VERSION}
-LILU_VERSION=${LILU_VERSION}
-WHATEVERGREEN_VERSION=${WHATEVERGREEN_VERSION}
-VIRTUALSMC_VERSION=${VIRTUALSMC_VERSION}
-APPLEALC_VERSION=${APPLEALC_VERSION}
-BRCMPATCHRAM_VERSION=${BRCMPATCHRAM_VERSION}
-CRYPTEXFIXUP_VERSION=${CRYPTEXFIXUP_VERSION}
-EOF
-
 {
   echo "# ${RELEASE_VERSION} — OpenCore ${OPENCORE_VERSION} for QEMU/KVM"
   echo
@@ -444,6 +432,13 @@ EOF
   fi
 )
 
+if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
+  {
+    echo "release_version=${RELEASE_VERSION}"
+    echo "opencore_version=${OPENCORE_VERSION}"
+  } >> "${GITHUB_OUTPUT}"
+fi
+
 echo "=== outputs ==="
-ls -lh "${ISO}.gz" "${ZIP}" "${PDF}" "${VERSIONS_OUT}" "${SUMS}"
+ls -lh "${ISO}.gz" "${ZIP}" "${PDF}" "${SUMS}"
 echo "done ${RELEASE_VERSION}"

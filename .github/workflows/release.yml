@@ -85,10 +85,6 @@ jobs:
             --work-dir "${{ runner.temp }}/oc-build" \
             --out-dir "${{ github.workspace }}/dist" \
             "${extra[@]}"
-          # Script may default the version when the input is empty.
-          resolved="$(awk -F= '/^RELEASE_VERSION=/{print $2}' dist/versions.txt)"
-          echo "release_version=${resolved}" >> "${GITHUB_OUTPUT}"
-          cat dist/versions.txt
 
       - name: Upload workflow artifacts
         uses: actions/upload-artifact@v4
@@ -120,7 +116,7 @@ jobs:
             extra+=(--latest)
           fi
 
-          title="${TAG} — OpenCore $(awk -F= '/^OPENCORE_VERSION=/{print $2}' dist/versions.txt) for QEMU/KVM"
+          title="${TAG} — OpenCore ${{ steps.pack.outputs.opencore_version }} for QEMU/KVM"
           gh release create "${TAG}" \
             --repo "${GITHUB_REPOSITORY}" \
             --target "${GITHUB_SHA}" \
@@ -131,5 +127,4 @@ jobs:
             "dist/OpenCoreEFIFolder-${TAG}.zip" \
             dist/Configuration.pdf \
             dist/upgrade-review.md \
-            dist/SHA256SUMS \
-            dist/versions.txt
+            dist/SHA256SUMS

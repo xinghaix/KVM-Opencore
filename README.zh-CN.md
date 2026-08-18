@@ -1,12 +1,10 @@
 # KVM-Opencore
 
-**语言：** 中文 · [English](README.en.md)
-
-[返回仓库首页](README.md)
+**语言：** 中文 · [English](README.md)
 
 QEMU/KVM 专用的 OpenCore 镜像。官方 OpenCore 只保证真机/Hackintosh，本仓库把 **QEMU + OVMF + q35** 上不能乱改的引导项写成契约，升级时必须先对照变更再打包。
 
-本仓库是 [Leoyzen/KVM-Opencore](https://github.com/leoyzen/KVM-Opencore) 的分支，源码构建系统来自 [thenickdude/KVM-Opencore](https://github.com/thenickdude/KVM-Opencore)。自动发版在 [xinghaix/KVM-Opencore](https://github.com/xinghaix/KVM-Opencore)。
+本仓库只是 [thenickdude/KVM-Opencore](https://github.com/thenickdude/KVM-Opencore) 的**克隆**（其源头是 [Leoyzen/KVM-Opencore](https://github.com/leoyzen/KVM-Opencore)），不是新的上游项目。这里只加了自己的 QEMU/KVM 自定义配置、自动发版工作流，以及下文的升级/兼容性检查。
 
 ## 这是什么
 
@@ -15,7 +13,7 @@ GitHub Actions 下载 [acidanthera](https://github.com/acidanthera) 的官方 RE
 - `OpenCore-<tag>.iso.gz` — GPT+FAT32 磁盘镜像（扩展名是 `.iso`，方便 Proxmox 选文件；**按硬盘挂，不要当光盘**）
 - `OpenCoreEFIFolder-<tag>.zip` — 现成的 `EFI/`
 - `upgrade-review.md` — **当前钉住的 OpenCore → 这次构建目标版本** 的官方 Changelog 摘录
-- `Configuration.pdf` / `SHA256SUMS` / `versions.txt`
+- `Configuration.pdf` / `SHA256SUMS`
 
 当前镜像按 Catalina / Big Sur / Monterey / Ventura 方向维护，更新的 macOS 需要先走下面的升级流程，不要假设能直接启动。
 

@@ -215,7 +215,7 @@ def main() -> int:
     print()
     if failures:
         print(f"{failures} KVM compatibility check(s) failed.")
-        print("Do not publish this image. See README.zh-CN.md / README.en.md upgrade process.")
+        print("Do not publish this image. See README.md / README.zh-CN.md upgrade process.")
         return 1
     print("KVM compatibility contract passed.")
     return 0
