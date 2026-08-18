@@ -1128,7 +1128,7 @@
 			<data>
 			</data>
 			<key>ScanPolicy</key>
-			<integer>18809603</integer>
+			<integer>0</integer>
 			<key>SecureBootModel</key>
 			<string>Disabled</string>
 			<key>Vault</key>
