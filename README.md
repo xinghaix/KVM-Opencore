@@ -28,11 +28,28 @@ GitHub Actions 下载 [acidanthera](https://github.com/acidanthera) 的官方 RE
 `package-release.sh` 换的是官方二进制，**不会**自动理解 1.0.7 到 1.0.8 之间改了什么。新版可能：
 
 - 新增 `config.plist` 键，缺了 `ocvalidate` 直接失败
+- 旧键的**官方推荐值**变了：有的能提升虚拟机性能或修已有问题，有的跟了就会砖掉 KVM
 - Sample 默认值对真机合适、对 KVM 是致命的（例如 `Vault=Secure`、`SecureBootModel=Default`、`SetupVirtualMap=true`、`ClearTaskSwitchBit=true`）
 - 改 VirtIO / 引导设备 / SMBIOS / CPU 行为，虚拟机进不了系统
 - kext 的 `MinKernel`/`MaxKernel` 写错会再次出现开机十几分钟（v21 修过的蓝牙问题）
 
-所以升级是固定流程，不是“把 `opencore_version` 改成 latest 再点 Run workflow”。
+所以升级是固定流程，不是“把 `opencore_version` 改成 latest 再点 Run workflow”，也**不是**永远锁死旧值、错过官方修 bug。
+
+### 新参数和旧参数新值：三类处理
+
+`review-upgrade.py` 会对照目标版 `Sample.plist`，把差异分成三类。打包脚本**不会**自动改已有值。
+
+| 类型 | 怎么处理 |
+| --- | --- |
+| **新键** | 必须单独决定 KVM 默认值，写进 `EFI/OC/config.plist`。Sample 默认值只能当参考。若 Sample 不安全，把我们的值锁进 `scripts/kvm-compat.json`。 |
+| **契约锁死的旧键** | 即使 Sample 改了也不跟。例如 `DummyPowerManagement=true`、`SetupVirtualMap=false`、`Vault=Optional`。只有有意改变 KVM 策略时才改契约。 |
+| **未锁死、但和 Sample 不一致的旧键** | 这才是性能或修问题的候选。对照 Changelog，改 `config.plist`，用旧盘做回滚测虚拟机，确认有益再提交。 |
+
+当前相对 OpenCore 1.0.7 Sample 的例子：
+
+- 候选：`FixupAppleEfiImages` 我们是 `false`，官方已默认 `true`（修较新/损坏的 Apple EFI 引导）。装新系统前应评估是否打开。
+- 不要跟 Sample：`SetupVirtualMap`、`SecureBootModel`、`Vault`、`Timeout`、`DummyPowerManagement`。
+- 不要当性能项：MLB / ROM / 序列号 / UUID。
 
 ### 升级必备流程（按顺序）
 
@@ -47,10 +64,11 @@ GitHub Actions 下载 [acidanthera](https://github.com/acidanthera) 的官方 RE
    默认从 `scripts/component-versions.env` 的 `OPENCORE_VERSION` 比到官方最新 tag。  
    先读输出里所有 **`[KVM]`** 行，再打开官方 [Changelog](https://github.com/acidanthera/OpenCorePkg/blob/master/Docs/Changelog.md) 和 [Differences](https://dortania.github.io/OpenCore-Install-Guide/differences.html)。
 
-2. **只补 schema，禁止整份粘贴 Sample.plist**
+2. **按三类处理 plist，禁止整份粘贴 Sample.plist**
 
-   用 `scripts/ensure_oc_config.py` 补缺失键。KVM 相关值必须以本仓库为准，不要用 Sample 的默认值覆盖。  
-   改完后把新键提交进 `EFI/OC/config.plist`，不要只存在于打包临时目录。
+   用 `scripts/ensure_oc_config.py` 只补**缺失**键。  
+   然后打开 `review-upgrade.py` 的三张表：新键写进仓库；锁定键保持；候选键逐条评估（该修的修，该提升的提升）。  
+   不要只把新键留在打包临时目录。
 
 3. **跑契约检查**
 
@@ -152,7 +170,19 @@ Tested direction: Catalina, Big Sur, Monterey, Ventura. Newer macOS is not impli
 
 ### Why a binary bump is not an upgrade
 
-The packager does not understand the semantic delta between OpenCore releases. A newer core can add required plist keys, ship Sample defaults that brick KVM (`Vault=Secure`, `SecureBootModel=Default`, `SetupVirtualMap=true`), change VirtIO/boot-device/CPU behaviour, or reload the Bluetooth kexts that caused 20-minute boots in v20.
+The packager does not understand the semantic delta between OpenCore releases. A newer core can add required plist keys, **change recommended values for keys we already have** (sometimes faster, sometimes a brick), ship Sample defaults that break KVM (`Vault=Secure`, `SecureBootModel=Default`, `SetupVirtualMap=true`), change VirtIO/boot-device/CPU behaviour, or reload the Bluetooth kexts that caused 20-minute boots in v20.
+
+Locking every old value forever is also wrong: you would miss official fixes. The review classifies each Sample delta.
+
+### New keys and changed recommended values
+
+| Class | What to do |
+| --- | --- |
+| **New keys** | Pick a KVM default and commit it. Sample is only a hint. If Sample is unsafe, lock our value in `scripts/kvm-compat.json`. |
+| **Locked keys** | Do not follow Sample (`DummyPowerManagement`, `SetupVirtualMap`, `Vault`, …). Edit the contract only when KVM policy itself changes. |
+| **Unlocked value changes** | These are the performance/bugfix candidates. Read the changelog, patch `config.plist`, test with the old disk still attached. |
+
+The packager never overwrites an existing value. Example vs OpenCore 1.0.7 Sample: `FixupAppleEfiImages` is `false` here and `true` upstream — evaluate it before a new macOS install. Do not treat MLB/ROM/serial as performance knobs.
 
 ### Required upgrade process
 
@@ -164,11 +194,11 @@ Do these in order. A failed contract check must not be published.
    python3 scripts/review-upgrade.py --to latest
    ```
 
-   Compare `scripts/component-versions.env` to the latest official tag. Read every **`[KVM]`** line, then the official changelog and [Dortania differences](https://dortania.github.io/OpenCore-Install-Guide/differences.html).
+   Compare `scripts/component-versions.env` to the latest official tag. Read every **`[KVM]`** line, the three Sample-delta tables, then the official changelog and [Dortania differences](https://dortania.github.io/OpenCore-Install-Guide/differences.html).
 
-2. **Fill schema only. Never paste Sample.plist over this config.**
+2. **Handle the three plist classes. Never paste Sample.plist over this config.**
 
-   `scripts/ensure_oc_config.py` adds missing keys. KVM contract values stay. Commit the filled keys to `EFI/OC/config.plist`.
+   `scripts/ensure_oc_config.py` adds **missing** keys only. Commit new keys; keep locked values; evaluate candidate value changes one by one.
 
 3. **Run the contract check**
 

@@ -248,5 +248,39 @@
     "SSDT-PLUG.aml",
     "SSDT-DTGP.aml",
     "SSDT-EHCI.aml"
-  ]
+  ],
+  "review": {
+    "ignore_paths": [
+      ["PlatformInfo", "Generic", "MLB"],
+      ["PlatformInfo", "Generic", "ROM"],
+      ["PlatformInfo", "Generic", "SystemSerialNumber"],
+      ["PlatformInfo", "Generic", "SystemUUID"]
+    ],
+    "hints": {
+      "Booter/Quirks/FixupAppleEfiImages": {
+        "why_en": "Upstream now defaults true to boot newer/broken Apple EFI images. Worth enabling for new macOS installers on KVM; test Recovery first.",
+        "why_zh": "官方默认改为 true，用来引导较新或损坏的 Apple EFI 镜像。KVM 装新系统时值得打开，先测恢复分区。"
+      },
+      "UEFI/APFS/MinDate": {
+        "why_en": "Sample 0 filters APFS by date. Keep -1 so older guests and installers still mount.",
+        "why_zh": "Sample 的 0 会按日期过滤 APFS。虚拟机要装老系统应保持 -1。"
+      },
+      "UEFI/APFS/MinVersion": {
+        "why_en": "Same as MinDate: 0 can hide older APFS volumes. Keep -1 on this image.",
+        "why_zh": "和 MinDate 一样，0 可能藏掉旧 APFS 卷。本镜像保持 -1。"
+      },
+      "Misc/Boot/HibernateMode": {
+        "why_en": "VMs rarely hibernate. Sample None is reasonable; Auto is also safe. Only change after testing.",
+        "why_zh": "虚拟机几乎不休眠。Sample 的 None 合理，Auto 也可以。改之前先测。"
+      },
+      "Misc/Security/ScanPolicy": {
+        "why_en": "Controls which disks OpenCore scans. Do not copy Sample blindly or VirtIO/USB installers may vanish.",
+        "why_zh": "决定扫描哪些磁盘。不要照抄 Sample，否则 VirtIO/USB 安装盘可能消失。"
+      },
+      "UEFI/Output/Resolution": {
+        "why_en": "Guest display preference, not a boot-critical quirk.",
+        "why_zh": "客户机分辨率偏好，不是引导生死开关。"
+      }
+    }
+  }
 }
