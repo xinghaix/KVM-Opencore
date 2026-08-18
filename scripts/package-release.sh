@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Assemble a KVM-Opencore release from official acidanthera binaries
 # plus this repo's config.plist, ACPI, and custom kexts.
+# The .iso is a real ISO 9660 + UEFI El Torito image for CD-ROM boot.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -304,94 +305,55 @@ cp -a "${OC_EXTRACT}/Docs/Configuration.pdf" "${PDF}"
   zip -q -X -r "${ZIP}" EFI
 )
 
-create_image_macos() {
-  local img="$1"
-  rm -f "${img}" "${img}.cdr"
-  # -srcfolder copies EFI/ into the image without mounting a FAT volume.
-  hdiutil create \
-    -ov \
-    -srcfolder "${STAGE}" \
-    -layout GPTSPUD \
-    -fs "MS-DOS FAT32" \
-    -volname EFI \
-    -format UDTO \
-    -size "${IMAGE_MB}m" \
-    "${img}" >/dev/null
-  if [[ -f "${img}.cdr" ]]; then
-    mv "${img}.cdr" "${img}"
-  fi
-  mark_partition_efi "${img}"
-}
-
-mark_partition_efi() {
-  python3 - "$1" <<'PY'
-import struct, sys, uuid, zlib, pathlib
-
-def crc32(blob: bytes) -> int:
-    return zlib.crc32(blob) & 0xFFFFFFFF
-
-def patch_header(buf: bytearray, header_off: int, array: bytes) -> None:
-    header_size = struct.unpack_from("<I", buf, header_off + 12)[0]
-    struct.pack_into("<I", buf, header_off + 88, crc32(array))
-    struct.pack_into("<I", buf, header_off + 16, 0)
-    struct.pack_into("<I", buf, header_off + 16, crc32(bytes(buf[header_off:header_off + header_size])))
-
-path = pathlib.Path(sys.argv[1])
-data = bytearray(path.read_bytes())
-if data[512:520] != b"EFI PART":
-    raise SystemExit(f"{path} is not a GPT disk image")
-
-entry_lba, = struct.unpack_from("<Q", data, 512 + 72)
-num_parts, entry_size = struct.unpack_from("<II", data, 512 + 80)
-alt_lba, = struct.unpack_from("<Q", data, 512 + 32)
-array_off = entry_lba * 512
-array_len = num_parts * entry_size
-efi_type = uuid.UUID("C12A7328-F81F-11D2-BA4B-00A0C93EC93B").bytes_le
-data[array_off:array_off + 16] = efi_type
-data[array_off + 56:array_off + 128] = "EFI".encode("utf-16le").ljust(72, b"\x00")
-
-backup_array_off = (alt_lba * 512) - array_len
-if 0 < backup_array_off < len(data):
-    data[backup_array_off:backup_array_off + 16] = efi_type
-    data[backup_array_off + 56:backup_array_off + 128] = "EFI".encode("utf-16le").ljust(72, b"\x00")
-
-array = bytes(data[array_off:array_off + array_len])
-patch_header(data, 512, array)
-if backup_array_off > 0:
-    patch_header(data, alt_lba * 512, bytes(data[backup_array_off:backup_array_off + array_len]))
-
-path.write_bytes(data)
-PY
-}
-
-create_image_linux() {
-  local img="$1"
-  need sgdisk
+create_fat_esp() {
+  local fat="$1"
+  local mb="$2"
   need mkfs.vfat
   need mcopy
-  local fat="${WORK_DIR}/efi-fat.img"
   rm -f "${fat}"
-  truncate -s "${IMAGE_MB}M" "${img}"
-  sgdisk --zap-all "${img}" >/dev/null
-  sgdisk --new=1:40:0 --typecode=1:ef00 --change-name=1:EFI "${img}" >/dev/null
-  local start end sectors
-  start="$(sgdisk -i 1 "${img}" | awk '/First sector:/{print $3}')"
-  end="$(sgdisk -i 1 "${img}" | awk '/Last sector:/{print $3}')"
-  sectors="$((end - start + 1))"
-  truncate -s "$((sectors * 512))" "${fat}"
-  mkfs.vfat -F 32 -n EFI "${fat}" >/dev/null
+  truncate -s "${mb}M" "${fat}"
+  mkfs.vfat -F 32 -n OPENCORE "${fat}" >/dev/null
   export MTOOLS_SKIP_CHECK=1
   mcopy -i "${fat}" -s "${EFI}" ::
-  dd if="${fat}" of="${img}" bs=512 seek="${start}" conv=notrunc status=none
-  rm -f "${fat}"
-  mark_partition_efi "${img}"
 }
 
-case "$(uname -s)" in
-  Darwin) create_image_macos "${ISO}" ;;
-  Linux) create_image_linux "${ISO}" ;;
-  *) echo "unsupported OS for disk image: $(uname -s)" >&2; exit 1 ;;
-esac
+# Real ISO 9660 + El Torito UEFI so QEMU/Proxmox can attach it as a CD-ROM.
+create_uefi_iso() {
+  local iso="$1"
+  need xorriso
+  local fat="${WORK_DIR}/efiboot.img"
+  local root="${WORK_DIR}/iso-root"
+  local efi_kb mb
+  efi_kb="$(du -sk "${EFI}" | awk '{print $1}')"
+  mb=$(( (efi_kb + 8192 + 1023) / 1024 ))
+  if (( mb < 32 )); then mb=32; fi
+  if (( mb > IMAGE_MB )); then mb="${IMAGE_MB}"; fi
+
+  echo "building UEFI El Torito ISO (${mb} MiB ESP)"
+  create_fat_esp "${fat}" "${mb}"
+  rm -rf "${root}"
+  mkdir -p "${root}/EFI/BOOT"
+  cp -a "${STAGE}/EFI" "${root}/"
+  cp -a "${fat}" "${root}/EFI/BOOT/efiboot.img"
+
+  rm -f "${iso}"
+  xorriso -as mkisofs \
+    -quiet \
+    -iso-level 3 \
+    -full-iso9660-filenames \
+    -joliet \
+    -joliet-long \
+    -rational-rock \
+    -volid "OPENCORE" \
+    -eltorito-alt-boot \
+    -e EFI/BOOT/efiboot.img \
+    -no-emul-boot \
+    -isohybrid-gpt-basdat \
+    -output "${iso}" \
+    "${root}"
+}
+
+create_uefi_iso "${ISO}"
 
 gzip -f --keep "${ISO}"
 
@@ -413,7 +375,8 @@ gzip -f --keep "${ISO}"
   echo
   echo "## Assets"
   echo
-  echo "- \`OpenCore-${RELEASE_VERSION}.iso.gz\` — GPT+FAT32 disk image with a \`.iso\` name so Proxmox lists it. Attach it as a disk, not as a real optical ISO."
+  echo "- \`OpenCore-${RELEASE_VERSION}.iso\` — real ISO 9660 + UEFI El Torito image. Upload it to the ISO store and attach it as a CD-ROM. Do not convert it to a hard disk."
+  echo "- \`OpenCore-${RELEASE_VERSION}.iso.gz\` — the same ISO, gzipped."
   echo "- \`OpenCoreEFIFolder-${RELEASE_VERSION}.zip\` — raw \`EFI/\` folder."
   echo "- \`Configuration.pdf\` — OpenCore ${OPENCORE_VERSION} manual."
   echo "- \`upgrade-review.md\` — changelog between the previously pinned OpenCore and this build. Read it before replacing a working VM disk."
@@ -426,9 +389,9 @@ gzip -f --keep "${ISO}"
 (
   cd "${OUT_DIR}"
   if command -v sha256sum >/dev/null 2>&1; then
-    sha256sum "OpenCore-${RELEASE_VERSION}.iso.gz" "OpenCoreEFIFolder-${RELEASE_VERSION}.zip" Configuration.pdf upgrade-review.md > SHA256SUMS
+    sha256sum "OpenCore-${RELEASE_VERSION}.iso" "OpenCore-${RELEASE_VERSION}.iso.gz" "OpenCoreEFIFolder-${RELEASE_VERSION}.zip" Configuration.pdf upgrade-review.md > SHA256SUMS
   else
-    shasum -a 256 "OpenCore-${RELEASE_VERSION}.iso.gz" "OpenCoreEFIFolder-${RELEASE_VERSION}.zip" Configuration.pdf upgrade-review.md > SHA256SUMS
+    shasum -a 256 "OpenCore-${RELEASE_VERSION}.iso" "OpenCore-${RELEASE_VERSION}.iso.gz" "OpenCoreEFIFolder-${RELEASE_VERSION}.zip" Configuration.pdf upgrade-review.md > SHA256SUMS
   fi
 )
 
@@ -440,5 +403,5 @@ if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
 fi
 
 echo "=== outputs ==="
-ls -lh "${ISO}.gz" "${ZIP}" "${PDF}" "${SUMS}"
+ls -lh "${ISO}" "${ISO}.gz" "${ZIP}" "${PDF}" "${SUMS}"
 echo "done ${RELEASE_VERSION}"

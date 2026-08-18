@@ -10,7 +10,8 @@ QEMU/KVM 专用的 OpenCore 镜像。官方 OpenCore 只保证真机/Hackintosh�
 
 GitHub Actions 下载 [acidanthera](https://github.com/acidanthera) 的官方 RELEASE 包，叠上本仓库的 `EFI/OC/config.plist`、ACPI 和自定义 kext，用**同一版本**的 `ocvalidate` 校验，再跑 `scripts/kvm-compat.json` 契约检查，最后发布：
 
-- `OpenCore-<tag>.iso.gz` — GPT+FAT32 磁盘镜像（扩展名是 `.iso`，方便 Proxmox 选文件；**按硬盘挂，不要当光盘**）
+- `OpenCore-<tag>.iso` — 真正的 ISO 9660 + UEFI El Torito 光盘。上传到 ISO 存储后按 **CD-ROM** 挂载，不用改成硬盘。
+- `OpenCore-<tag>.iso.gz` — 同一张 ISO 的 gzip 压缩包
 - `OpenCoreEFIFolder-<tag>.zip` — 现成的 `EFI/`
 - `upgrade-review.md` — **当前钉住的 OpenCore → 这次构建目标版本** 的官方 Changelog 摘录
 - `Configuration.pdf` / `SHA256SUMS`
@@ -143,7 +144,8 @@ macOS 上从 submodule 源码编译仍是 `make` / `make dist RELEASE_VERSION=v2
 
 ## 虚拟机侧注意
 
-- 镜像是磁盘，不是 ISO9660 光盘。
+- 本仓库工作流打出来的是真正的光盘。Proxmox：把 `OpenCore-<tag>.iso` 传到 ISO 存储，按 CD-ROM 挂上即可。QEMU：`-cdrom OpenCore-<tag>.iso`。不要当成硬盘导入。
+- thenickdude 的旧版（`OpenCore-v21.iso` 及更早）仍是 GPT 磁盘改了扩展名，那些还是要按硬盘挂。
 - 固件用原版 OVMF 即可，不必再打补丁。
 - CPU 用 `host-passthrough` 或 Penryn；`ProvideCurrentCpuInfo=true` 后不再强制 `+invtsc`。
 - 参考 `libvirt.xml`。

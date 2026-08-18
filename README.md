@@ -10,7 +10,8 @@ This repository is a **clone** of [thenickdude/KVM-Opencore](https://github.com/
 
 GitHub Actions downloads official [acidanthera](https://github.com/acidanthera) RELEASE zips, overlays this tree's QEMU/KVM `config.plist`, ACPI, and custom kexts, runs the **matching** `ocvalidate`, then enforces `scripts/kvm-compat.json` before publishing:
 
-- `OpenCore-<tag>.iso.gz` — GPT+FAT32 disk image (the `.iso` name is only so Proxmox lists the file; **attach it as a disk, not as a CD**)
+- `OpenCore-<tag>.iso` — real ISO 9660 + UEFI El Torito image. Upload it to the ISO store and attach it as a **CD-ROM**. No disk conversion.
+- `OpenCore-<tag>.iso.gz` — the same ISO, gzipped
 - `OpenCoreEFIFolder-<tag>.zip` — raw `EFI/` folder
 - `upgrade-review.md` — official changelog excerpt from the **pinned OpenCore version to the version in this build**
 - `Configuration.pdf` / `SHA256SUMS`
@@ -143,7 +144,8 @@ Source builds on macOS remain `make` / `make dist RELEASE_VERSION=v23`. Run `mak
 
 ## VM notes
 
-- The image is a disk, not an ISO9660 optical disc.
+- Releases from this workflow are real CDs. In Proxmox: upload `OpenCore-<tag>.iso` to the ISO storage and attach it as a CD-ROM. In QEMU: `-cdrom OpenCore-<tag>.iso`. Do not import it as a hard disk.
+- Older thenickdude releases (`OpenCore-v21.iso` and earlier) were GPT disk images with an `.iso` name. Those still need to be attached as disks.
 - Stock OVMF is enough; no patched firmware is required.
 - Use `host-passthrough` or Penryn; `+invtsc` is no longer required once `ProvideCurrentCpuInfo=true`.
 - See `libvirt.xml`.
