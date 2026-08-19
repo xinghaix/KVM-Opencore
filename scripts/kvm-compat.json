@@ -133,6 +133,18 @@
       "why_zh": "部分 OVMF 不会给 ATAPI/光盘接文件系统。要认出 mkmaciso 混合安装光盘必须打开。"
     },
     {
+      "path": ["UEFI", "APFS", "GlobalConnect"],
+      "equals": true,
+      "why_en": "PCI-passthrough NVMe shows up as a late device on OVMF. Full connect is required before APFS jumpstart can expose Macintosh HD.",
+      "why_zh": "PCI 直通的 NVMe 在 OVMF 上像后挂上的设备。APFS jumpstart 要先 GlobalConnect 才能露出 Macintosh HD。"
+    },
+    {
+      "path": ["UEFI", "APFS", "JumpstartHotPlug"],
+      "equals": true,
+      "why_en": "Re-run APFS jumpstart when NVMe/USB appears after the first connect pass.",
+      "why_zh": "NVMe/USB 在第一轮连接之后才出现时，补跑一次 APFS jumpstart。"
+    },
+    {
       "path": ["PlatformInfo", "Automatic"],
       "equals": true,
       "why_en": "SMBIOS is generated from Generic. Do not switch to manual tables.",
