@@ -32,7 +32,8 @@ permissions:
 
 concurrency:
   group: release-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
+  # A new overwrite run should kill a previous job stuck on apt/mirrors.
+  cancel-in-progress: true
 
 jobs:
   package:
@@ -46,9 +47,10 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install packaging tools
+        timeout-minutes: 4
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends dosfstools mtools xorriso zip unzip gzip
+          chmod +x scripts/ci-install-packaging-tools.sh
+          ./scripts/ci-install-packaging-tools.sh
 
       - name: Resolve versions
         id: vars
