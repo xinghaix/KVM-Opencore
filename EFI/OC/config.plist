@@ -312,7 +312,7 @@
 			<key>EnableWriteUnprotector</key>
 			<true/>
 			<key>FixupAppleEfiImages</key>
-			<false/>
+			<true/>
 			<key>ForceBooterSignature</key>
 			<false/>
 			<key>ForceExitBootServices</key>
@@ -1048,7 +1048,16 @@
 	<key>Misc</key>
 	<dict>
 		<key>BlessOverride</key>
-		<array/>
+		<array>
+			<string>\.IABootFiles\boot.efi</string>
+			<string>\com.apple.recovery.boot\boot.efi</string>
+			<string>\com.apple.recovery.boot\BaseSystem.dmg</string>
+			<string>\Install macOS Sonoma.app\Contents\SharedSupport\BaseSystem.dmg</string>
+			<string>\Install macOS Sequoia.app\Contents\SharedSupport\BaseSystem.dmg</string>
+			<string>\Install macOS Tahoe.app\Contents\SharedSupport\BaseSystem.dmg</string>
+			<string>\Install macOS Ventura.app\Contents\SharedSupport\BaseSystem.dmg</string>
+			<string>\Install macOS Monterey.app\Contents\SharedSupport\BaseSystem.dmg</string>
+		</array>
 		<key>Boot</key>
 		<dict>
 			<key>ConsoleAttributes</key>
@@ -1106,7 +1115,7 @@
 		<key>Security</key>
 		<dict>
 			<key>AllowSetDefault</key>
-			<false/>
+			<true/>
 			<key>ApECID</key>
 			<integer>0</integer>
 			<key>AuthRestart</key>
@@ -1114,7 +1123,7 @@
 			<key>BlacklistAppleUpdate</key>
 			<true/>
 			<key>DmgLoading</key>
-			<string>Signed</string>
+			<string>Any</string>
 			<key>EnablePassword</key>
 			<false/>
 			<key>ExposeSensitiveData</key>
@@ -1488,7 +1497,7 @@
 				<key>Enabled</key>
 				<true/>
 				<key>LoadEarly</key>
-				<false/>
+				<true/>
 				<key>Path</key>
 				<string>OpenPartitionDxe.efi</string>
 			</dict>
@@ -1937,7 +1946,7 @@
 			<key>TscSyncTimeout</key>
 			<integer>0</integer>
 			<key>UnblockFsConnect</key>
-			<false/>
+			<true/>
 		</dict>
 		<key>ReservedMemory</key>
 		<array/>

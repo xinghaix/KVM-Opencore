@@ -8,6 +8,10 @@ These settings live in **Proxmox / QEMU / libvirt**, not in the OpenCore ISO. Op
 
 Do not paste these extras into the shared ISO unless you have tested that hardware. Wrong GPU boot-args or a host CPUID spoof will brick other VMs that use the same image.
 
+## macos-iso-builder / mkmaciso installer CDs
+
+Those files are UDF + Apple Partition Map + HFS+, not ISO 9660. Keep the OpenCore release as CD-ROM. If the picker has no installer entry, attach the **installer** as a disk (`media=disk`) so the HFS+ partition is visible at 512-byte sectors, then Reset NVRAM. Details: [README.md](../README.md#vm-notes).
+
 ## Guest OS type: Other (USB 3.0)
 
 On Proxmox, create the VM as **OS Type = Other** (`ostype: other`). Nick Sherlock’s Monterey/Ventura Proxmox guides say the same.

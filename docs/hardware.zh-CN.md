@@ -8,6 +8,10 @@
 
 不要把下面这些“针对某块卡/某颗 CPU”的参数写进共用 ISO，除非你已经在那台机器上测过。错误的显卡 boot-args 或宿主 CPUID 伪装，会让用同一张盘的其他虚拟机起不来。
 
+## macos-iso-builder / mkmaciso 安装光盘
+
+那些文件是 UDF + Apple 分区图 + HFS+，不是 ISO 9660。OpenCore 发行版继续按 CD-ROM 挂。若菜单里没有安装器，把**安装 ISO**改成磁盘（`media=disk`），让 HFS+ 按 512 字节扇区露出来，然后 Reset NVRAM。详见 [README.zh-CN.md](../README.zh-CN.md)。
+
 ## 客户机类型选 Other（USB 3.0 直通）
 
 在 Proxmox 里创建虚拟机时，**OS Type 选 Other**（`ostype: other`）。Nick Sherlock 的 Monterey / Ventura Proxmox 教程也是这样写的。

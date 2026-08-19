@@ -44,7 +44,7 @@ So an upgrade is a fixed process. It is not “set `opencore_version` to latest 
 
 Examples versus OpenCore 1.0.7 Sample:
 
-- Candidate: `FixupAppleEfiImages` is `false` here and `true` upstream (boots newer/broken Apple EFI images). Evaluate it before a new macOS install.
+- Locked for installer CDs: `FixupAppleEfiImages=true`, `DmgLoading=Any`, `UnblockFsConnect=true`.
 - Do not follow Sample: `SetupVirtualMap`, `SecureBootModel`, `Vault`, `Timeout`, `DummyPowerManagement`.
 - Not performance knobs: MLB / ROM / serial / UUID.
 
@@ -147,6 +147,11 @@ Source builds on macOS remain `make` / `make dist RELEASE_VERSION=v23`. Run `mak
 ## VM notes
 
 - Releases from this workflow are real CDs. In Proxmox: upload `OpenCore-<tag>.iso` to the ISO storage and attach it as a CD-ROM. In QEMU: `-cdrom OpenCore-<tag>.iso`. Do not import it as a hard disk.
+- **macOS installer ISOs from [macos-iso-builder](https://github.com/LongQT-sea/macos-iso-builder) / [mkmaciso](https://github.com/LongQT-sea/mkmaciso)** are not ISO 9660. They are UDF + Apple Partition Map + HFS+ (`hdiutil makehybrid -hfs -udf`). Linux `isoinfo` will say they are not ISO 9660; that is expected. Detection stays on the OpenCore 1.0.7 bless scanner (`BlessOverride` plus the built-in `\System\Library\CoreServices\boot.efi` path), not custom `Misc.Entries` device paths:
+  - `\.IABootFiles\boot.efi` and `\com.apple.recovery.boot\boot.efi` (createinstallmedia / recovery)
+  - `Install macOS *.app\Contents\SharedSupport\BaseSystem.dmg` if that file exists on a mounted volume
+  - `DmgLoading=Any` so those DMGs are not dropped when `SecureBootModel=Disabled`
+  If the picker is still empty, attach the **installer** as a disk so APM uses 512-byte sectors (`qm set 105 --sata0 local:iso/macOS_Sonoma_14.8.8.iso,media=disk`). Keep this OpenCore ISO as CD-ROM. Then Reset NVRAM (or delete `efidisk0`) so leftover LongQT `Boot####` entries do not mask the scan.
 - Create the VM as **OS Type = Other**. That is required for reliable USB 3 passthrough; it is not an OpenCore plist key. Details: [docs/hardware.md](docs/hardware.md).
 - Older thenickdude releases (`OpenCore-v21.iso` and earlier) were GPT disk images with an `.iso` name. Those still need to be attached as disks.
 - Stock OVMF is enough; no patched firmware is required.
@@ -159,7 +164,7 @@ This tree would not exist without the projects it clones and the docs it borrowe
 
 - [Leoyzen/KVM-Opencore](https://github.com/leoyzen/KVM-Opencore) — original QEMU/KVM OpenCore image and ACPI/libvirt layout.
 - [thenickdude/KVM-Opencore](https://github.com/thenickdude/KVM-Opencore) — source clone: build system, release numbering, and the QEMU/KVM `config.plist` this repo still ships.
-- [LongQT-sea/OpenCore-ISO](https://github.com/LongQT-sea/OpenCore-ISO) and [qemu-cpu-guide](https://github.com/LongQT-sea/qemu-cpu-guide) — real CD-ROM ISO packaging, Proxmox usage, and the Skylake-vs-`host` CPU discussion.
+- [LongQT-sea/OpenCore-ISO](https://github.com/LongQT-sea/OpenCore-ISO), [macos-iso-builder](https://github.com/LongQT-sea/macos-iso-builder), and [qemu-cpu-guide](https://github.com/LongQT-sea/qemu-cpu-guide) — real CD-ROM ISO packaging, hybrid installer ISOs, Proxmox usage, and the Skylake-vs-`host` CPU discussion.
 - [acidanthera](https://github.com/acidanthera) — OpenCore, Lilu, WhateverGreen, and the other RELEASE binaries.
 - [Dortania](https://dortania.github.io/) — OpenCore Install Guide and GPU Buyers Guide (including Navi / `agdpmod=pikera`).
 - [kholia/OSX-KVM](https://github.com/kholia/OSX-KVM) — QEMU USB/xHCI (`msi=off`) patterns.

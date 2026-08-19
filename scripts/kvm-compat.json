@@ -116,9 +116,21 @@
     },
     {
       "path": ["Misc", "Security", "DmgLoading"],
-      "equals": "Signed",
-      "why_en": "Allows official recovery/installer DMGs while still rejecting random images.",
-      "why_zh": "允许官方恢复/安装 DMG，同时拒绝来路不明的镜像。"
+      "equals": "Any",
+      "why_en": "mkmaciso / macos-iso-builder installers wrap BaseSystem.dmg inside Install macOS *.app. Signed can hide those DMGs on OVMF when SecureBootModel is Disabled.",
+      "why_zh": "mkmaciso / macos-iso-builder 把 BaseSystem.dmg 包在 Install macOS *.app 里。OVMF 上 SecureBootModel=Disabled 时 Signed 可能把这些 DMG 藏掉。"
+    },
+    {
+      "path": ["Booter", "Quirks", "FixupAppleEfiImages"],
+      "equals": true,
+      "why_en": "Needed to load newer Apple installer/recovery EFI images on OVMF.",
+      "why_zh": "OVMF 上加载较新的 Apple 安装器/恢复 EFI 需要打开。"
+    },
+    {
+      "path": ["UEFI", "Quirks", "UnblockFsConnect"],
+      "equals": true,
+      "why_en": "Some OVMF builds skip connecting filesystems on ATAPI/optical devices. Required to see mkmaciso hybrid installer CDs.",
+      "why_zh": "部分 OVMF 不会给 ATAPI/光盘接文件系统。要认出 mkmaciso 混合安装光盘必须打开。"
     },
     {
       "path": ["PlatformInfo", "Automatic"],
@@ -274,8 +286,12 @@
         "why_zh": "虚拟机几乎不休眠。Sample 的 None 合理，Auto 也可以。改之前先测。"
       },
       "Misc/Security/ScanPolicy": {
-        "why_en": "Controls which disks OpenCore scans. Do not copy Sample blindly or VirtIO/USB installers may vanish.",
-        "why_zh": "决定扫描哪些磁盘。不要照抄 Sample，否则 VirtIO/USB 安装盘可能消失。"
+        "why_en": "Controls which disks OpenCore scans. Do not copy Sample blindly or VirtIO/USB/ATAPI installers may vanish. Keep 0 for mkmaciso UDF+HFS hybrids.",
+        "why_zh": "决定扫描哪些磁盘。不要照抄 Sample，否则 VirtIO/USB/ATAPI 安装盘可能消失。mkmaciso 的 UDF+HFS 混合盘保持 0。"
+      },
+      "Misc/BlessOverride": {
+        "why_en": "OpenCore 1.0.7 extra bless paths (same scanner as System/Library/CoreServices/boot.efi). Keep .IABootFiles/boot.efi and Install macOS *.app SharedSupport BaseSystem.dmg. First existing path on a volume wins.",
+        "why_zh": "OpenCore 1.0.7 的额外 bless 路径（和 System/Library/CoreServices/boot.efi 同一套扫描）。保留 .IABootFiles/boot.efi 和 Install macOS *.app 里的 BaseSystem.dmg。每个卷上先命中的那条生效。"
       },
       "UEFI/Output/Resolution": {
         "why_en": "Guest display preference, not a boot-critical quirk.",

@@ -44,7 +44,7 @@ GitHub Actions 下载 [acidanthera](https://github.com/acidanthera) 的官方 RE
 
 当前相对 OpenCore 1.0.7 Sample 的例子：
 
-- 候选：`FixupAppleEfiImages` 我们是 `false`，官方已默认 `true`（修较新/损坏的 Apple EFI 引导）。装新系统前应评估是否打开。
+- 为安装光盘锁死：`FixupAppleEfiImages=true`、`DmgLoading=Any`、`UnblockFsConnect=true`。
 - 不要跟 Sample：`SetupVirtualMap`、`SecureBootModel`、`Vault`、`Timeout`、`DummyPowerManagement`。
 - 不要当性能项：MLB / ROM / 序列号 / UUID。
 
@@ -147,6 +147,11 @@ macOS 上从 submodule 源码编译仍是 `make` / `make dist RELEASE_VERSION=v2
 ## 虚拟机侧注意
 
 - 本仓库工作流打出来的是真正的光盘。Proxmox：把 `OpenCore-<tag>.iso` 传到 ISO 存储，按 CD-ROM 挂上即可。QEMU：`-cdrom OpenCore-<tag>.iso`。不要当成硬盘导入。
+- **[macos-iso-builder](https://github.com/LongQT-sea/macos-iso-builder) / [mkmaciso](https://github.com/LongQT-sea/mkmaciso) 打出来的 macOS 安装 ISO 不是 ISO 9660**，而是 UDF + Apple 分区图 + HFS+（`hdiutil makehybrid -hfs -udf`）。Linux 上 `isoinfo` 报“不是 ISO 9660”是正常的。识别仍走 OpenCore 1.0.7 官方 bless 扫描（`BlessOverride` + 内置的 `\System\Library\CoreServices\boot.efi`），不用 `Misc.Entries` 设备路径：
+  - `\.IABootFiles\boot.efi` 和 `\com.apple.recovery.boot\boot.efi`（createinstallmedia / 恢复分区）
+  - 已挂载卷上若存在 `Install macOS *.app\Contents\SharedSupport\BaseSystem.dmg` 也会被扫到
+  - `DmgLoading=Any`，避免 `SecureBootModel=Disabled` 时把这些 DMG 丢掉
+  若菜单里还是没有安装器，把**安装 ISO**改成磁盘挂载，让 APM 按 512 字节扇区解析：`qm set 105 --sata0 local:iso/macOS_Sonoma_14.8.8.iso,media=disk`。OpenCore 本身继续按 CD-ROM 挂。然后 Reset NVRAM（或删掉 `efidisk0`），避免 LongQT 留下的 `Boot####` 掩盖真实扫描结果。
 - 创建虚拟机时 **OS Type 选 Other**。USB 3 直通要靠这一项，它不是 OpenCore 的 plist 键。详见 [docs/hardware.zh-CN.md](docs/hardware.zh-CN.md)。
 - thenickdude 的旧版（`OpenCore-v21.iso` 及更早）仍是 GPT 磁盘改了扩展名，那些还是要按硬盘挂。
 - 固件用原版 OVMF 即可，不必再打补丁。
@@ -159,7 +164,7 @@ macOS 上从 submodule 源码编译仍是 `make` / `make dist RELEASE_VERSION=v2
 
 - [Leoyzen/KVM-Opencore](https://github.com/leoyzen/KVM-Opencore) — 最初的 QEMU/KVM OpenCore 镜像，以及 ACPI / libvirt 布局。
 - [thenickdude/KVM-Opencore](https://github.com/thenickdude/KVM-Opencore) — 本仓库的来源：构建系统、发行编号，以及现在仍在用的 QEMU/KVM `config.plist`。
-- [LongQT-sea/OpenCore-ISO](https://github.com/LongQT-sea/OpenCore-ISO) 与 [qemu-cpu-guide](https://github.com/LongQT-sea/qemu-cpu-guide) — 真正的 CD-ROM ISO、Proxmox 用法，以及 Skylake 和 `host` 怎么选。
+- [LongQT-sea/OpenCore-ISO](https://github.com/LongQT-sea/OpenCore-ISO)、[macos-iso-builder](https://github.com/LongQT-sea/macos-iso-builder) 与 [qemu-cpu-guide](https://github.com/LongQT-sea/qemu-cpu-guide) — 真正的 CD-ROM ISO、混合安装 ISO、Proxmox 用法，以及 Skylake 和 `host` 怎么选。
 - [acidanthera](https://github.com/acidanthera) — OpenCore、Lilu、WhateverGreen 等官方 RELEASE。
 - [Dortania](https://dortania.github.io/) — OpenCore 安装指南和显卡购买指南（含 Navi / `agdpmod=pikera`）。
 - [kholia/OSX-KVM](https://github.com/kholia/OSX-KVM) — QEMU USB/xHCI（`msi=off`）写法。
